@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29728.190
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "VVC_com_capacitores_Updated", "VVC_com_capacitores_Updated\VVC_com_capacitores_Updated.pyproj", "{FEEA1CAC-0E7E-4FC8-A344-194AFC2C715B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FEEA1CAC-0E7E-4FC8-A344-194AFC2C715B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEEA1CAC-0E7E-4FC8-A344-194AFC2C715B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EDE0051B-6D8B-44AE-AA34-D1C964C23E76}
+	EndGlobalSection
+EndGlobal
