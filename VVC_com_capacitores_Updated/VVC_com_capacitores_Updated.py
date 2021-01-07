@@ -424,7 +424,7 @@ class DSS():
 
         return effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, dict_allVoltages_trafos, tap_inicial, max_desvio, val_tensoes, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido
 
-    def cap_atuacao(self, effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido, atuacao_list_trafo):
+    def cap_atuacao(self, effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido):
 
         # Etapa 2: encontrar equipamento de ajuste mais adequado considerando sua efetividade e quantidade de comutações
         
@@ -529,9 +529,8 @@ class DSS():
             elif equipments_name.index('Transformer') >= 2:
                 print("Capacidade de atuação do equipamento {} é de {}".format(equipments_name[i],atuacao_list[i]))
         
-        if n_iteracoes == 1:
-            atuacao_list_cap = atuacao_list[0:2] #tentar fazer algo genérico.
-            atuacao_list_trafo = atuacao_list[2:10]
+        atuacao_list_cap = atuacao_list[0:2] #tentar fazer algo genérico.
+        atuacao_list_trafo = atuacao_list[2:10]
         effectiveness_trafo = effectiveness[2:10]
         print("\n")
         global highest_effectiveness
@@ -558,11 +557,9 @@ class DSS():
                         for i in range(len(atuacao_list_trafo)):
                             if atuacao_list_trafo[i] == max(atuacao_list_trafo):
                                 highest_effectiveness.append(effectiveness_trafo[i])
-                                #if n_iteracoes >= 23:
-                                #    pdb.set_trace()
                         for i in range(len(atuacao_list_trafo)):
                             if effectiveness_trafo[i] == max(highest_effectiveness):
-                                print("Agora, o equipamento (transformador) {} é o escolhido, pois o outro equipamento não será útil.".format(i))
+                                print("Agora, o equipamento (transformador) {} é o escolhido, pois o outro equipamento não será útil.".format(i)) #aqui precisa ser o trafo 4
                                 equip_analisado.append(i)
                             break
                     else:
@@ -575,17 +572,19 @@ class DSS():
 
         else:
             for i in range(len(atuacao_list)):
+                #if penalizado < 1:
                 if atuacao_list[i] == max(atuacao_list):
                         print("O equipamento (capacitores e transformadores) {} é o escolhido para corrigir a tensão e terá o acréscimo de uma comutação".format(i))
                         equip_analisado.append(i)
-                        #equip_eliminado = i
+                #elif penalizado >= 1:
+                #    #preciso mudar o nome da variável atuacao_list_trafo que é utilizada na fç penalizado dentro da comutatividade_trafos
         
         print("Equip analisado: {}".format(equip_analisado))
         print(id_tensao)
         print("self.dssTransformers.Tap: {}".format(self.dssTransformers.Tap))
         global equip_select
 
-        if penalizado >= 1:
+        if penalizado >= 1: #aqui está certo
             for i in range(len(penalizado_real_escolhido)):
                 print("\nEste será o número do equipamento (transformadores) a ser analisado: {}".format(penalizado_real_escolhido[i]))
                 #equip_select: da o numero do equipamento relacionado aos trafos e capacitores
@@ -653,14 +652,6 @@ class DSS():
         for i in range(len(effectiveness_trafo)):
             if effectiveness_trafo[i] == max(highest_effectiveness):
                 print("\nEste será o número do equipamento (transformador) a ser analisado: {}".format(i))
-                #global select_trafo
-                #select_trafo = i
-                #print(select_trafo)
-                #if equip_analisado == []:
-                #    equip_analisado.append(select_trafo)
-                #    print("Opa!")
-                #print("Equipamento selecionado (transformador) : {}".format(select_trafo))
-        
 
         for i in range(len(list_trafos)): #trabalhar nisso
             if list_all_equipments[equip_select] == list_trafos[i]:
@@ -822,9 +813,10 @@ class DSS():
         else:
             equip_analisado[0] = select_trafo
             self.dssTransformers.First
-            for i in range(len(atuacao_list_trafo)): 
-                    if atuacao_list_trafo[i] == max(atuacao_list_trafo) and i == equip_select_trafo: #um dos erros está aqui também
-                        #print(equip_analisado[0])
+            for i in range(len(atuacao_list_trafo)):
+                    #if n_iteracoes == 7:
+                    #    pdb.set_trace()
+                    if (atuacao_list_trafo[i] == max(atuacao_list_trafo) and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(2,atuacao_list_trafo)[1] and i == equip_select_trafo): #O PROBLEMA DO TRAFO 4 ESTÁ AQUI!
                         tap_inicial = self.dssTransformers.Tap
                         print("Tap inicial antes do if: {}".format(tap_inicial))
                         taps_trafos = list(dict_trafos.values())
@@ -861,11 +853,7 @@ class DSS():
                             print(tensao_iter)
                             #pdb.set_trace()
                         allVoltages_trafo = list(dict_allVoltages_trafos[list_trafos[i]])
-                        #print(allVoltages_trafo)
-                        #self.dssTransformers.Tap = 1.0
-                        #pdb.set_trace()
                         if id_tensao < 0.94: #coloquei dessa forma pois se fizer id_tensao < 1, pegará valores que estão dentro dos limites aceitáveis
-                            #if iterBus_violated >= 1:
                                 while self.dssTransformers.Tap < self.dssTransformers.MaxTap:
                     
                                     self.dssTransformers.Tap += 0.00625
@@ -951,10 +939,7 @@ class DSS():
                                 print("O transformador {} apresenta comutatividade {}".format(list_trafos[i],commutactiveness_trafo[i]))
                             print(commutations_trafo)
                             n_commutations = commutations_capacitor + commutations_trafo
-                            print(n_commutations)
-                            #commutactiveness = commutactiveness_capacitor + commutactiveness_trafo
-                            #pdb.set_trace()
-                        #break
+                            print(n_commutations)        
                     self.dssTransformers.Next
 
         if penalizado >=1:
@@ -983,9 +968,6 @@ class DSS():
                             print(equip_penalizado)
                             print("taps_trafos[i] (esse é o valor que está sendo passado no if): {}".format(taps_trafos[i]))
                     print("\nO equipamento selecionado não resolverá o problema. Devemos pegar o 2° equipamento com maior capacidade de atuação.")
-                    if n_iteracoes >= 7:
-                        pdb.set_trace()
-
                     for k in range(len(atuacao_list_trafo)): #aqui está certo!
                         if (list(dict_trafos.values())[k] == self.dssTransformers.MaxTap and id_tensao < 0.94) or (list(dict_trafos.values())[k] == self.dssTransformers.MinTap and id_tensao > 1.05):
                             atuacao_list_trafo[k] = -1 
@@ -1231,7 +1213,7 @@ if __name__ == "__main__":
 
                 # Etapa 2: Utilização da lógica fuzzy para saber qual o equipamento será utilizado para o ajuste de tensão
                 print("\nIncremento da lógica fuzzy:")
-                efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido, atuacao_list_trafo)
+                efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido)
                 list_equip_analisado.append(equip_analisado) #armazenar o equipamento analisado nessa segunda etapa
                 print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
                 
@@ -1319,7 +1301,7 @@ if __name__ == "__main__":
                         #print(commutactiveness)
                         #Etapa 4: Entrando com as novas capacidades de atuação (lógica fuzzy):
                         print("\nEntrando com as novas capacidades de atuação (lógica fuzzy):\n")
-                        efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido, atuacao_list_trafo)
+                        efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido)
                         list_equip_analisado.append(equip_analisado)
                         print(equip_analisado)
                         print(iter_equip_analisado)
