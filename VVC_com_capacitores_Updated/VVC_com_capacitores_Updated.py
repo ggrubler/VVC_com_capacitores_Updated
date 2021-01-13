@@ -598,6 +598,9 @@ class DSS():
                     print("\nEste será o número do equipamento (capacitores e transformadores) a ser analisado: {}".format(i))
                     equip_select = i
                     print(equip_select)
+                    global equip_select_list
+                    equip_select_list = []
+                    equip_select_list.append(equip_select)
                     if equip_analisado == []:
                         equip_analisado.append(equip_select)
                     print("Equipamento selecionado (capacitores e transformadores): {}".format(equip_analisado))
@@ -910,23 +913,23 @@ class DSS():
                         if id_tensao < 0.94 or id_tensao > 1.05:
 
                             for i in range(len(list_equip_analisado)):
-                                for j in range(len(equip_analisado)):
+                                for j in range(len(equip_select_list)):
                                     if list_equip_analisado[i] != list_equip_analisado[i-1]: #se o equipamento for igual ao da iteração anterior, então a comutação diária não é zerada
                                         daily_commutations = 0
-                                        trafos_commutations.update({list_trafos[equip_analisado[j]]:daily_commutations})
+                                        trafos_commutations.update({list_trafos[equip_select_list[j]]:daily_commutations})
                     
-                            for j in range(len(equip_analisado)):
-                                if equip_analisado in list_equip_analisado: 
-                                    intern_commutations = list_equip_analisado.count(equip_analisado)  #conta o número de vezes que o equipamento aparece para ser analisado              
+                            for j in range(len(equip_select_list)):
+                                if equip_select_list in list_equip_analisado: 
+                                    intern_commutations = list_equip_analisado.count(equip_select_list)  #conta o número de vezes que o equipamento aparece para ser analisado              
                                 else:
                                     intern_commutations = 1
 
                                 altera_commutations = intern_commutations + daily_commutations
-                                commutations_trafo[equip_analisado[j]] = altera_commutations
+                                commutations_trafo[equip_select_list[j]] = altera_commutations
                         
                             max_comutacoes = max(commutations_trafo)
-                            for j in range(len(equip_analisado)):
-                                trafos_commutations.update({list_trafos[equip_analisado[j]]:altera_commutations})
+                            for j in range(len(equip_select_list)):
+                                trafos_commutations.update({list_trafos[equip_select_list[j]]:altera_commutations})
                
                             print("\nNúmero de comutações diárias: {}".format(daily_commutations))
                             print("Número de comutações internas: {}".format(intern_commutations))
@@ -1214,7 +1217,7 @@ if __name__ == "__main__":
                 # Etapa 2: Utilização da lógica fuzzy para saber qual o equipamento será utilizado para o ajuste de tensão
                 print("\nIncremento da lógica fuzzy:")
                 efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido)
-                list_equip_analisado.append(equip_analisado) #armazenar o equipamento analisado nessa segunda etapa
+                list_equip_analisado.append(equip_select_list) #armazenar o equipamento analisado nessa segunda etapa
                 print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
                 
                 # Etapa 3: Adição no número de comutações na função comutatividade e alteração do tap do trafo especificado para realizar o ajuste
