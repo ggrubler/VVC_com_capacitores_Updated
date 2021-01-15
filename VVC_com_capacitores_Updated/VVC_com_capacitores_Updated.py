@@ -83,7 +83,17 @@ class DSS():
         list_Vi = list(dict_Vi.values())  # a posição em que o desvio máximo se encontra nessa lista corresponde à barra que apresenta o maior desvio e que precisa ser realizada o VVC
         global id_barra
         id_barra = list_Vi.index(max_desvio)
-        print("A barra {} foi a identificada para a realização do VVC".format(id_barra))
+        global list_buses
+        list_buses = []
+        for i in range(len(self.dssCircuit.AllNodeNames)):
+            list_buses.append(self.dssCircuit.AllNodeNames[i])
+
+        for j in range(len(list_buses)):
+            if id_barra == j: #se esse equip for o mais efetivo.
+                print("\Barra Ativa: {}".format(objeto.ativa_barra(list_buses[j])))
+                print("A barra {} , indexada como {}, foi a identificada para a realização do VVC".format(list_buses[j], id_barra))
+                break
+        
 
         return id_barra, max_desvio
 
@@ -98,7 +108,6 @@ class DSS():
         #Configurações
         self.dssText.Command = "Set Mode = SnapShot"
         self.dssText.Command = "Set ControlMode = OFF"
-        #self.dssText.Command = 'solve mode=snapshot'
     
     def ativa_elemento(self, nome_elemento):
 
@@ -107,6 +116,14 @@ class DSS():
 
         # Retonar o nome do elemento ativado
         return self.dssCktElement.Name
+    
+    def ativa_barra(self, nome_barra):
+
+        # Ativa barra pelo seu nome
+        self.dssCircuit.SetActiveBus(nome_barra)
+    
+        # Retornar o nome da barra ativada
+        return self.dssBus.Name
 
     def efetividade(self):
         Vi = objeto.get_AllBusVmagPu()
@@ -207,13 +224,11 @@ class DSS():
             desvio_tap_max = []
             desvio_tap_min = []
             print("\nA tensão que precisa ser analisada é {}".format(id_tensao))
-            print("A barra que precisa ser analisada é {}".format(id_barra))
+            print("A barra que precisa ser analisada é {}".format(objeto.ativa_barra(list_buses[id_barra])))
             print("\nElemento selecionado: " + self.dssCktElement.Name)
             num_taps = self.dssTransformers.NumTaps/2
             num_taps = int(num_taps)
 
-            
-            
             global tap_inicial
             tap_inicial = self.dssTransformers.Tap
             print(tap_inicial) #ele não deve voltar para 1.1
@@ -255,20 +270,14 @@ class DSS():
                         break
                    
                 # Imprimindo o desvio das tensões em cada tap em cada transformador e sua respectiva média:
-                #print("Desvio das tensões em cada tap: \n" + str(desvio_tap_max))
                 if desvio_tap_max == []:
                     media_desvio = math.nan
-                #if desvio_tap_max == []:
-                #    media_desvio = 0
                 else:
                     media_desvio = sum(desvio_tap_max)/len(desvio_tap_max)
 
-                #print("A média dos desvios de tensão para o transformador {} é {}\n".format(i,media_desvio))
                 desvio_trafos.append(media_desvio)
-                #print(VoltagesPerTrafos)
                 dict_allVoltages_trafos.update({list_trafos[i]:VoltagesPerTrafos})
                 dict_trafos.update({list_trafos[i]:tap_inicial})
-                #print(dict_allVoltages_trafos)
 
             elif 1.0 < id_tensao:
 
@@ -306,7 +315,6 @@ class DSS():
                 print("\n") 
             self.dssTransformers.Next
 
-        #self.dssText.Command = 'solve mode=snapshot'
         desvios_equip = desvio_cap + desvio_trafos
         print("Desvios totais: {}".format(desvios_equip))
 
@@ -367,9 +375,7 @@ class DSS():
                     altera_commutations = intern_commutations + daily_commutations #a comutação diária estará com o valor correspondente da iteração anterior
                     n_commutations[equip_analisado[j]] = altera_commutations
             flatten_equip_analisado = list(itertools.chain.from_iterable(list_equip_analisado)) #apenas peguei o "list_equip_analisado", que era uma lista de lista, e transformei para uma lista
-           # print("\nTeste do número das comutações: {}".format(n_commutations))
-        
- 
+
         max_comutacoes = max(n_commutations)
         array_n_commutations = numpy.array(n_commutations)
         array_n_commutations_capacitor = numpy.array(commutations_capacitor)
@@ -388,16 +394,11 @@ class DSS():
             valor = array_n_commutations[i]/max_comutacoes
             commutactiveness.append(valor)
 
-        teste = self.dssCktElement.AllVariableNames
-        print("Isso é um teste")
-        print(teste) 
-
         return effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, dict_allVoltages_trafos, tap_inicial, max_desvio, val_tensoes, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido
 
     def cap_atuacao(self, effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido):
 
         # Etapa 2: encontrar equipamento de ajuste mais adequado considerando sua efetividade e quantidade de comutações
-        
         
         #Criação das variáveis do problema
         efetividade = ctrl.Antecedent(np.arange(-1, 1.1, 0.1), 'efetividade') #configuração boa, loop na iter. 44
@@ -512,7 +513,7 @@ class DSS():
         print(tap_inicial)
         global trafo_eleito
         trafo_eleito = []
-        if penalizado >= 1: #FAZER FAZER OS AJUSTES DE QUANDO TIVER MAIS DE UM EQUIPAMENTO SELECIONADO!!!!!!
+        if penalizado >= 1: 
             if (list(dict_trafos.values())[equip_ajustar] == self.dssTransformers.MaxTap and id_tensao < 0.94) or (list(dict_trafos.values())[equip_ajustar] == self.dssTransformers.MinTap and id_tensao > 1.05):
                 for i in range(len(atuacao_list_trafo)):
                     if atuacao_list_trafo[i] == max(atuacao_list_trafo):
@@ -528,31 +529,33 @@ class DSS():
                             if atuacao_list_trafo[i] == max(atuacao_list_trafo):
                                 highest_effectiveness.append(effectiveness_trafo[i])
                         for i in range(len(atuacao_list_trafo)):
-                            if effectiveness_trafo[i] == max(highest_effectiveness):
+                            if effectiveness_trafo[i] == max(highest_effectiveness): #and (0.9 < taps_trafos[i] < 1.1):
                                 print("Agora, o equipamento (transformador) {} é o escolhido, pois o outro equipamento não será útil.".format(i)) #aqui precisa ser o trafo 4
                                 equip_analisado.append(i)
-                            break
+                        break
                     else:
-                        if atuacao_list_trafo[i] == max(atuacao_list_trafo) and (0.9 < taps_trafos[i] < 1.1):
+                        if atuacao_list_trafo[i] == max(atuacao_list_trafo): #and (0.9 < taps_trafos[i] < 1.1): #dependendo da tensão que está se analisando, pode não funcionar
                             print("Agora, o equipamento (transformador) {} é o escolhido, pois o outro equipamento não será útil.".format(i))
                             equip_analisado.append(i) #adicionar o equipamento na lista, será enviado para a cap. de atuação
+                                        
             else:
                 print("O equipamento {} é o escolhido para corrigir a tensão e terá o acréscimo de uma comutação".format(equip_ajustar))
                 equip_analisado.append(equip_ajustar)
 
         else:
             for i in range(len(atuacao_list)):
-                #if penalizado < 1:
                 if atuacao_list[i] == max(atuacao_list):
                         print("O equipamento (capacitores e transformadores) {} é o escolhido para corrigir a tensão e terá o acréscimo de uma comutação".format(i))
                         equip_analisado.append(i)
-                #elif penalizado >= 1:
-                #    #preciso mudar o nome da variável atuacao_list_trafo que é utilizada na fç penalizado dentro da comutatividade_trafos
         
         print("Equip analisado: {}".format(equip_analisado))
         print(id_tensao)
         print("self.dssTransformers.Tap: {}".format(self.dssTransformers.Tap))
         global equip_select
+        global test_equip_analisado
+        global test_cap_analisado
+        test_equip_analisado = []
+        test_cap_analisado = []
 
         if penalizado >= 1: #aqui está certo
             for i in range(len(penalizado_real_escolhido)):
@@ -561,27 +564,27 @@ class DSS():
                 equip_select = penalizado_real_escolhido[i] + len(atuacao_list) - len(atuacao_list_trafo) #isso aqui que eu coloquei afeta na aplicação da função comutatividade.
                 if equip_analisado == []:
                     equip_analisado.append(equip_select)
-                #pdb.set_trace() #aqui está certo
         else:
             for i in range(len(effectiveness)):
                 if effectiveness[i] == max(highest_effectiveness):
                     print("\nEste será o número do equipamento (capacitores e transformadores) a ser analisado: {}".format(i))
                     equip_select = i
                     print(equip_select)
+                    real_equip = equip_select - len(atuacao_list) + len(atuacao_list_trafo)
+                    test_equip_analisado.append(real_equip)
+                    test_cap_analisado.append(equip_select)
                     global equip_select_list
                     equip_select_list = []
                     equip_select_list.append(equip_select)
                     if equip_analisado == []:
                         equip_analisado.append(equip_select)
                     print("Equipamento selecionado (capacitores e transformadores): {}".format(equip_analisado))
-                    #pdb.set_trace()
-           
         print("\n")            
            
         return efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido
 
     def comutatividade_trafos(self, effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, vi_analisada, dict_allVoltages_trafos, tap_inicial, max_desvio, val_tensoes, atuacao_list_trafo, commutactiveness, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido):
-
+        print("\n ---------------- COMUTATIVIDADE TRANSFORMADORES --------------------\n")
         # 1° passo: criar um loop que percorra todos os equipamentos, da mesma forma que a efetividade.
         penalizado = 0
         print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
@@ -641,13 +644,17 @@ class DSS():
                             print(tap_inicial)
                             print(self.dssTransformers.Tap)
                         print(id_tensao)
-                        self.dssTransformers.First
+                        #self.dssTransformers.First
                         for j in range(len(list_trafos)):
                             if effectiveness_trafo[j] == max(highest_effectiveness): #se esse equip for o mais efetivo.
-                                print("Elemento Ativo: {} \n".format(objeto.ativa_elemento(list_trafos[j])))
+                                print("\nElemento Ativo: {}".format(objeto.ativa_elemento(list_trafos[j])))
                                 break
-                            self.dssTransformers.Next
-                        
+                         #   self.dssTransformers.Next
+                        for j in range(len(list_buses)):
+                            if id_barra == j:
+                                print("Barra Ativa: {}".format(objeto.ativa_barra(list_buses[j])))
+                                break
+
                         if tap_inicial == self.dssTransformers.MaxTap and id_tensao < 0.94:
                             print("O equipamento selecionado não pode resolver o problema da tensão. Procure outro equipamento\n")
                             penalizado += 1
@@ -657,15 +664,13 @@ class DSS():
                             penalizado += 1
                         
                         else:
-
                             global num_cond
                             if id_tensao > 0.94 and id_tensao < 1.05:
                                 num_cond += 1
                                 tensao_iter = id_tensao #pois tensao_iter estará com um valor da outra iteração
-
                             allVoltages_trafo = list(dict_allVoltages_trafos[list_trafos[i]])
+                            print("self.dssTransformers.Tap: {}".format(self.dssTransformers.Tap))
                             if id_tensao < 0.94: #coloquei dessa forma pois se fizer id_tensao < 1, pegará valores que estão dentro dos limites aceitáveis
-
                                     while self.dssTransformers.Tap < self.dssTransformers.MaxTap:                                        
                                         self.dssTransformers.Tap += 0.00625
                                         self.dssText.Command = 'solve mode=snapshot' # isso não pode ser tirado, do outro jeito não deu certo.
@@ -716,7 +721,6 @@ class DSS():
 
                         # ARMAZENANDO AS COMUTAÇÕES NOS RESPECTIVOS EQUIPAMENTOS:
                             if id_tensao < 0.94 or id_tensao > 1.05:
-
                                 for i in range(len(list_equip_analisado)):
                                     for j in range(len(real_equip_analisado)):
                                         if list_equip_analisado[i] != list_equip_analisado[i-1]: #se o equipamento for igual ao da iteração anterior, então a comutação diária não é zerada
@@ -753,7 +757,7 @@ class DSS():
             equip_analisado[0] = select_trafo
             self.dssTransformers.First #tem alguma coisa a ver com isso o problema das tensões
             for i in range(len(atuacao_list_trafo)):
-                    if (atuacao_list_trafo[i] == max(atuacao_list_trafo) and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(2,atuacao_list_trafo)[1] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(3,atuacao_list_trafo)[2] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(5,atuacao_list_trafo)[4] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(6,atuacao_list_trafo)[5] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(7,atuacao_list_trafo)[6] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(8,atuacao_list_trafo)[7] and i == equip_select_trafo):                        
+                    if (atuacao_list_trafo[i] == max(atuacao_list_trafo) and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(2,atuacao_list_trafo)[1] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(3,atuacao_list_trafo)[2] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(5,atuacao_list_trafo)[4] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(6,atuacao_list_trafo)[5] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(7,atuacao_list_trafo)[6] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(8,atuacao_list_trafo)[7] and i == equip_select_trafo) or (atuacao_list_trafo[i] == heapq.nlargest(4,atuacao_list_trafo)[3] and i == equip_select_trafo):                        
                         tap_inicial = self.dssTransformers.Tap
                         print("Tap inicial antes do if: {}".format(tap_inicial))
                         taps_trafos = list(dict_trafos.values())
@@ -765,7 +769,11 @@ class DSS():
                             print("Tap inicial depois do if: {}".format(tap_inicial))
                             print("self.dssTransformers.Tap: {}".format(self.dssTransformers.Tap))
 
-                        print("Elemento Ativo: {} \n".format(objeto.ativa_elemento(list_trafos[i])))
+                        print("\nElemento Ativo: {}".format(objeto.ativa_elemento(list_trafos[i])))
+                        for j in range(len(list_buses)):
+                            if id_barra == j:
+                                print("Barra Ativa: {}".format(objeto.ativa_barra(list_buses[j])))
+                                break
 
                         if tap_inicial == self.dssTransformers.MaxTap and id_tensao < 0.94:
                             print("O equipamento selecionado não pode resolver o problema da tensão. Procure outro equipamento\n")
@@ -781,6 +789,7 @@ class DSS():
                             tensao_iter = id_tensao #pois tensao_tap estará com um valor da outra iteração
                             print(tensao_iter)
                         allVoltages_trafo = list(dict_allVoltages_trafos[list_trafos[i]])
+                        print("self.dssTransformers.Tap: {}".format(self.dssTransformers.Tap))
                         if id_tensao < 0.94: #coloquei dessa forma pois se fizer id_tensao < 1, pegará valores que estão dentro dos limites aceitáveis
 
                                 while self.dssTransformers.Tap < self.dssTransformers.MaxTap:
@@ -834,7 +843,7 @@ class DSS():
                                     if list_equip_analisado[i] != list_equip_analisado[i-1]: #se o equipamento for igual ao da iteração anterior, então a comutação diária não é zerada
                                         daily_commutations = 0
                                         trafos_commutations.update({list_trafos[equip_analisado[j]]:daily_commutations})
-                            #pdb.set_trace()
+
                             for j in range(len(equip_analisado)):
                                 if equip_analisado in list_equip_analisado: 
                                     intern_commutations = list_equip_analisado.count(equip_analisado)  #conta o número de vezes que o equipamento aparece para ser analisado              
@@ -901,15 +910,16 @@ class DSS():
                                 highest_effectiveness.append(effectiveness_trafo[i])
                         for i in range(len(atuacao_list_trafo)):
                             if highest_effectiveness.count(max(highest_effectiveness)) == 1:
-                                if effectiveness_trafo[i] == max(highest_effectiveness):
+                                if effectiveness_trafo[i] == max(highest_effectiveness): #and (0.9 < taps_trafos[i] < 1.1):
+                                    if n_iteracoes == 167:
+                                        pdb.set_trace()
                                     print("O equipamento (transformador) {} é o escolhido para corrigir a tensão e terá o acréscimo de uma comutação".format(i))
                                     penalizado_real_escolhido.append(i) #precisa ser repassado para a fç capacidade de atuação
                             elif highest_effectiveness.count(max(highest_effectiveness)) > 1:
                                     if i == 0:
                                         print("O equipamento (transformador) {} é o escolhido para corrigir a tensão e terá o acréscimo de uma comutação".format(i))
                                         penalizado_real_escolhido.append(i) #precisa ser repassado para a fç capacidade de atuação
-                                
-
+                   
                     else:
                         if atuacao_list_trafo[i] == max(atuacao_list_trafo):
                             print("O equipamento (transformador) {} é o escolhido para corrigir a tensão e terá o acréscimo de uma comutação".format(i))
@@ -917,15 +927,15 @@ class DSS():
                             print("Tap deste equipamento: {}".format(taps_trafos[i]))
                             print(equip_ajustar)
                         
-
         return n_commutations, tap_inicial, equip_ajustar, penalizado, penalizado_real_escolhido, equip_analisado, atuacao_list_trafo
         
     def comutatividade_capacitores(self, effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, vi_analisada, max_desvio, val_tensoes, atuacao_list_cap, commutactiveness, commutactiveness_capacitor):
+            print("\n ---------------- COMUTATIVIDADE CAPACITORES --------------------\n")
             global analisado_capacitor
             global daily_commutations
             global altera_commutations
             global max_comutacoes
-            global list_equip_analisado
+            global list_cap_analisado
             global tensao_iter
             caps_commutations = {}
             analisado_capacitor = []
@@ -1016,15 +1026,15 @@ class DSS():
                     global intern_commutations
                     if id_tensao < 0.94 or id_tensao > 1.05:
                         
-                        for i in range(len(list_equip_analisado)):
+                        for i in range(len(list_cap_analisado)):
                             for j in range(len(real_equip_analisado)):
-                                if list_equip_analisado[i] != list_equip_analisado[i-1]: #se o equipamento for igual ao da iteração anterior, então a comutação diária não é zerada
+                                if list_cap_analisado[i] != list_cap_analisado[i-1]: #se o equipamento for igual ao da iteração anterior, então a comutação diária não é zerada
                                     daily_commutations = 0
-                                    caps_commutations.update({list_all_equipments[real_equip_analisado[j]]:daily_commutations})
+                                    caps_commutations.update({list_caps[real_equip_analisado[j]]:daily_commutations})
                     
                         for j in range(len(real_equip_analisado)):
-                            if real_equip_analisado in list_equip_analisado: 
-                                intern_commutations = list_equip_analisado.count(real_equip_analisado)  #conta o número de vezes que o equipamento aparece para ser analisado              
+                            if real_equip_analisado in list_cap_analisado: 
+                                intern_commutations = list_cap_analisado.count(real_equip_analisado)  #conta o número de vezes que o equipamento aparece para ser analisado              
                             else:
                                 intern_commutations = 1
 
@@ -1033,7 +1043,7 @@ class DSS():
                         
                         max_comutacoes = max(commutations_capacitor)
                         for j in range(len(real_equip_analisado)):
-                            caps_commutations.update({list_all_equipments[real_equip_analisado[j]]:altera_commutations})
+                            caps_commutations.update({list_caps[real_equip_analisado[j]]:altera_commutations})
                
                         print("\nNúmero de comutações diárias: {}".format(daily_commutations))
                         print("Número de comutações internas: {}".format(intern_commutations))
@@ -1043,7 +1053,7 @@ class DSS():
                         for i in range(len(list_caps)):
                             valor = commutations_capacitor[i]/max_comutacoes
                             commutactiveness_capacitor[i] = valor
-                            print("O equipamento {} apresenta comutatividade {}".format(list_all_equipments[i],commutactiveness_capacitor[i]))
+                            print("O equipamento {} apresenta comutatividade {}".format(list_caps[i],commutactiveness_capacitor[i]))
                         print(commutations_capacitor)
                         n_commutations = commutations_capacitor + commutations_trafo
                         print(n_commutations)
@@ -1072,6 +1082,7 @@ if __name__ == "__main__":
         tam = len(Vin)
         list_buses = []
         list_equip_analisado = []
+        list_cap_analisado = []
         global n_iteracoes
         n_iteracoes = 0
         daily_commutations = 0
@@ -1132,7 +1143,16 @@ if __name__ == "__main__":
                 # Etapa 2: Utilização da lógica fuzzy para saber qual o equipamento será utilizado para o ajuste de tensão
                 print("\nIncremento da lógica fuzzy:")
                 efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido)
-                list_equip_analisado.append(equip_select_list) #armazenar o equipamento analisado nessa segunda etapa
+                if equip_select >= 0 and equip_select < 2:
+                    if len(equip_analisado) > 1:
+                        list_cap_analisado.append(test_cap_analisado)
+                    else:
+                        list_cap_analisado.append(equip_analisado) #só pega o primeiro equipamento que chega
+                elif equip_select >= 2:
+                    if len(equip_analisado) > 1:
+                        list_equip_analisado.append(test_equip_analisado)
+                    else:
+                        list_equip_analisado.append(equip_analisado)
                 print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
                 
                 # Etapa 3: Adição no número de comutações na função comutatividade e alteração do tap do trafo especificado para realizar o ajuste
@@ -1148,29 +1168,51 @@ if __name__ == "__main__":
                     print("\nA tensão atingiu o nível adequado! Não se esqueça de pegar os equipamentos utilizados e adicionar +1 na comutação diária e zerar a comutação interna!\n")
                     
                     if len(equip_analisado) > 1:
-                        for j in range(len(real_equip_analisado)):
-                            intern_commutations = 0
-                            if real_equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
-                                daily_commutations = list_equip_analisado.count(real_equip_analisado)                       
-                            else:
-                                daily_commutations = 1
-                            altera_commutations = intern_commutations + daily_commutations
-                            n_commutations[real_equip_analisado[j]] = altera_commutations
-                            max_comutacoes = max(n_commutations)
+                        if equip_select < 2:
+                            for j in range(len(real_equip_analisado)):
+                                intern_commutations = 0
+                                if real_equip_analisado in list_cap_analisado: # não esquecer de alterar no outro também
+                                    daily_commutations = list_cap_analisado.count(real_equip_analisado)                       
+                                else:
+                                    daily_commutations = 1
+                                altera_commutations = intern_commutations + daily_commutations
+                                n_commutations[real_equip_analisado[j]] = altera_commutations
+                                max_comutacoes = max(n_commutations)
+                        else:
+                            for j in range(len(real_equip_analisado)):
+                                intern_commutations = 0
+                                if real_equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
+                                    daily_commutations = list_equip_analisado.count(real_equip_analisado)                       
+                                else:
+                                    daily_commutations = 1
+                                altera_commutations = intern_commutations + daily_commutations
+                                n_commutations[real_equip_analisado[j]] = altera_commutations
+                                max_comutacoes = max(n_commutations)
                         print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
                         print("\nNúmero de comutações diárias: {}".format(daily_commutations))
                         print("Número de comutações internas: {}".format(intern_commutations))
 
                     else:
-                        for j in range(len(equip_analisado)):
-                            intern_commutations = 0
-                            if equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
-                                daily_commutations = list_equip_analisado.count(equip_analisado)                       
-                            else:
-                                daily_commutations = 1
-                            altera_commutations = intern_commutations + daily_commutations
-                            n_commutations[equip_analisado[j]] = altera_commutations
-                            max_comutacoes = max(n_commutations)
+                        if equip_select < 2:
+                            for j in range(len(equip_analisado)):
+                                intern_commutations = 0
+                                if equip_analisado in list_cap_analisado: # não esquecer de alterar no outro também
+                                    daily_commutations = list_cap_analisado.count(equip_analisado)                       
+                                else:
+                                    daily_commutations = 1
+                                altera_commutations = intern_commutations + daily_commutations
+                                n_commutations[equip_analisado[j]] = altera_commutations
+                                max_comutacoes = max(n_commutations)
+                        else:
+                            for j in range(len(equip_analisado)):
+                                intern_commutations = 0
+                                if equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
+                                    daily_commutations = list_equip_analisado.count(equip_analisado)                       
+                                else:
+                                    daily_commutations = 1
+                                altera_commutations = intern_commutations + daily_commutations
+                                n_commutations[equip_analisado[j]] = altera_commutations
+                                max_comutacoes = max(n_commutations)
                         print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
                         print("\nNúmero de comutações diárias: {}".format(daily_commutations))
                         print("Número de comutações internas: {}".format(intern_commutations))
@@ -1208,7 +1250,16 @@ if __name__ == "__main__":
                         #Etapa 4: Entrando com as novas capacidades de atuação (lógica fuzzy):
                         print("\nEntrando com as novas capacidades de atuação (lógica fuzzy):\n")
                         efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido = objeto.cap_atuacao(effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, tap_inicial, commutactiveness, commutactiveness_capacitor, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido)
-                        list_equip_analisado.append(equip_analisado)
+                        if equip_select >= 0 and equip_select < 2:
+                            if len(equip_analisado) > 1:
+                                list_cap_analisado.append(test_cap_analisado)
+                            else:
+                                list_cap_analisado.append(equip_analisado) #só pega o primeiro equipamento que chega
+                        elif equip_select >= 2:
+                            if len(equip_analisado) > 1:
+                                list_equip_analisado.append(test_equip_analisado)
+                            else:
+                                list_equip_analisado.append(equip_analisado)
                         print(equip_analisado)
                         print(iter_equip_analisado)
                         if equip_select < 2:
@@ -1225,20 +1276,42 @@ if __name__ == "__main__":
                             #Zerando a comutação interna e adicionando o acréscimo na comutação diária:
                             if tensao_iter > 0.94 and tensao_iter < 1.05:
                                 if len(equip_analisado) > 1:
-                                    for j in range(len(real_equip_analisado)):
-                                        intern_commutations = 0
-                                        if real_equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
-                                            daily_commutations = list_equip_analisado.count(real_equip_analisado)                       
-                                        else:
-                                            daily_commutations = 1
-                                        altera_commutations = intern_commutations + daily_commutations
-                                        n_commutations[real_equip_analisado[j]] = altera_commutations
-                                        max_comutacoes = max(n_commutations)
+                                    if equip_select < 2:
+                                        for j in range(len(real_equip_analisado)):
+                                            intern_commutations = 0
+                                            if real_equip_analisado in list_cap_analisado: # não esquecer de alterar no outro também
+                                                daily_commutations = list_cap_analisado.count(real_equip_analisado)                       
+                                            else:
+                                                daily_commutations = 1
+                                            altera_commutations = intern_commutations + daily_commutations
+                                            n_commutations[real_equip_analisado[j]] = altera_commutations
+                                            max_comutacoes = max(n_commutations)
+                                    else:
+                                        for j in range(len(real_equip_analisado)):
+                                            intern_commutations = 0
+                                            if real_equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
+                                                daily_commutations = list_equip_analisado.count(real_equip_analisado)                       
+                                            else:
+                                                daily_commutations = 1
+                                            altera_commutations = intern_commutations + daily_commutations
+                                            n_commutations[real_equip_analisado[j]] = altera_commutations
+                                            max_comutacoes = max(n_commutations)
                                     print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
                                     print("\nNúmero de comutações diárias: {}".format(daily_commutations))
                                     print("Número de comutações internas: {}".format(intern_commutations))
                             
                                 else:
+                                    if equip_select < 2:
+                                        for j in range(len(equip_analisado)):
+                                            intern_commutations = 0
+                                            if equip_analisado in list_cap_analisado: # não esquecer de alterar no outro também
+                                                daily_commutations = list_cap_analisado.count(equip_analisado)                       
+                                            else:
+                                                daily_commutations = 1
+                                            altera_commutations = intern_commutations + daily_commutations
+                                            n_commutations[equip_analisado[j]] = altera_commutations
+                                            max_comutacoes = max(n_commutations)
+                                    else:
                                         for j in range(len(equip_analisado)):
                                             intern_commutations = 0
                                             if equip_analisado in list_equip_analisado: # não esquecer de alterar no outro também
@@ -1248,17 +1321,9 @@ if __name__ == "__main__":
                                             altera_commutations = intern_commutations + daily_commutations
                                             n_commutations[equip_analisado[j]] = altera_commutations
                                             max_comutacoes = max(n_commutations)
-                                        print("\nNúmero de comutações diárias: {}".format(daily_commutations))
-                                        print("Número de comutações internas: {}".format(intern_commutations))
+                                    print("\nNúmero de comutações diárias: {}".format(daily_commutations))
+                                    print("Número de comutações internas: {}".format(intern_commutations))
                             print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
-                # Final do script: todos os equipamentos realmente selecionados para a correção da tensão na barra especificada receberá o acréscimo na comutação diária.
-                # Em seguida, a comutação interna será zerada, pois ela é só auxiliar no cálculo.
-        #for i in range(len(Vin)):
-        #    if Vin[i] > Vmin and Vin[i] < Vmax:
-        #        print("\nParabéns, você conseguiu solucionar o problema! Todas as barras estão com as tensões nos níveis adequados!\n")
-        #        print("\nPosição final dos taps:\n {}".format(dict_trafos))
-        #        #effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, dict_allVoltages_trafos = objeto.efetividade()
-        #        pdb.set_trace()
 
 
 
