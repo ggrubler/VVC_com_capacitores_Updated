@@ -609,7 +609,6 @@ class DSS():
         return efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, tap_inicial, atuacao_list_trafo, atuacao_list_cap, equip_ajustar, penalizado, penalizado_real_escolhido
 
     def comutatividade_trafos(self, effectiveness, max_effectiveness, id_tensao, n_commutations, num_taps, id_barra, Vmin, Vmax, efetividade, comutatividade, cap_atuacao, atuacao, atuacao_simulador, atuacao_list, equip_analisado, vi_analisada, dict_allVoltages_trafos, tap_inicial, max_desvio, val_tensoes, atuacao_list_trafo, commutactiveness, commutactiveness_trafo, equip_ajustar, penalizado, penalizado_real_escolhido):
-
         # 1° passo: criar um loop que percorra todos os equipamentos, da mesma forma que a efetividade.
         penalizado = 0
         print("\nAnálise das posições dos taps dos transformadores: {}".format(dict_trafos))
